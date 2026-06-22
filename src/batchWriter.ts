@@ -1,22 +1,45 @@
 import { config } from "./config";
-import { applyBatchUpdates } from "./db";
 import { MetricsTracker } from "./metrics";
 import { PrefixIndex } from "./prefixIndex";
-import { deleteKeysByPatterns } from "./redis";
 import { buildPrefixes } from "./types";
 
 type QueueSnapshot = Array<{ query: string; increment: number }>;
+type ApplyBatchUpdatesFn = (
+  updates: Array<{ query: string; increment: number }>
+) => Promise<Array<{ query: string; count: number; recentScore: number }>>;
+type DeleteKeysByPatternsFn = (patterns: string[]) => Promise<number>;
+
+interface BatchWriterDependencies {
+  applyUpdates?: ApplyBatchUpdatesFn;
+  deleteKeys?: DeleteKeysByPatternsFn;
+}
+
+const defaultApplyUpdates: ApplyBatchUpdatesFn = async (updates) => {
+  const { applyBatchUpdates } = await import("./db");
+  return applyBatchUpdates(updates);
+};
+
+const defaultDeleteKeys: DeleteKeysByPatternsFn = async (patterns) => {
+  const { deleteKeysByPatterns } = await import("./redis");
+  return deleteKeysByPatterns(patterns);
+};
 
 export class BatchWriter {
   private readonly queue = new Map<string, number>();
   private timer: NodeJS.Timeout | null = null;
   private isFlushing = false;
   private flushRequestedWhileBusy = false;
+  private readonly applyUpdates: ApplyBatchUpdatesFn;
+  private readonly deleteKeys: DeleteKeysByPatternsFn;
 
   constructor(
     private readonly prefixIndex: PrefixIndex,
-    private readonly metrics: MetricsTracker
-  ) {}
+    private readonly metrics: MetricsTracker,
+    dependencies: BatchWriterDependencies = {}
+  ) {
+    this.applyUpdates = dependencies.applyUpdates ?? defaultApplyUpdates;
+    this.deleteKeys = dependencies.deleteKeys ?? defaultDeleteKeys;
+  }
 
   start(): void {
     if (this.timer) {
@@ -79,7 +102,7 @@ export class BatchWriter {
         }
 
         try {
-          const updatedTerms = await applyBatchUpdates(snapshot);
+          const updatedTerms = await this.applyUpdates(snapshot);
           this.metrics.recordBatchFlush(snapshot.length);
 
           for (const term of updatedTerms) {
@@ -128,10 +151,9 @@ export class BatchWriter {
     }
 
     try {
-      await deleteKeysByPatterns(Array.from(patterns));
+      await this.deleteKeys(Array.from(patterns));
     } catch (error) {
       console.warn("Prefix cache invalidation failed.", error);
     }
   }
 }
-

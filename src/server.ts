@@ -3,6 +3,7 @@ import * as path from "path";
 
 import { BatchWriter } from "./batchWriter";
 import { config } from "./config";
+import { ConsistentHashRing } from "./consistentHash";
 import { closeDatabase, initSchema, loadAllSearchTerms } from "./db";
 import { MetricsTracker } from "./metrics";
 import { PrefixIndex } from "./prefixIndex";
@@ -15,6 +16,11 @@ const app = express();
 const metrics = new MetricsTracker();
 const prefixIndex = new PrefixIndex();
 const batchWriter = new BatchWriter(prefixIndex, metrics);
+const cacheRoutingRing = new ConsistentHashRing(100);
+
+for (const nodeId of ["cache-node-a", "cache-node-b", "cache-node-c"]) {
+  cacheRoutingRing.addNode(nodeId);
+}
 
 let indexReloadPromise: Promise<void> | null = null;
 
@@ -95,6 +101,26 @@ app.get(
 
 app.get("/api/metrics", (_request, response) => {
   response.json(metrics.getSnapshot());
+});
+
+app.get("/api/cache-routing", (request, response) => {
+  const key = typeof request.query.key === "string" ? request.query.key.trim() : "";
+
+  if (!key) {
+    response.status(400).json({
+      error: "Query parameter 'key' is required."
+    });
+    return;
+  }
+
+  response.json({
+    key,
+    selectedNode: cacheRoutingRing.getNode(key),
+    replicas: cacheRoutingRing.getReplicaCount(),
+    strategy: "consistent_hashing_simulation",
+    note:
+      "The main app uses one Redis instance locally. This endpoint demonstrates how cache keys can be distributed across multiple cache nodes in a scaled design."
+  });
 });
 
 const publicDirectory = path.join(process.cwd(), "public");

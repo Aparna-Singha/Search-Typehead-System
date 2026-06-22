@@ -105,6 +105,18 @@ const readMetrics = async (baseUrl: string): Promise<MetricsResponse> => {
   return (await response.json()) as MetricsResponse;
 };
 
+const warmSuggestionCache = async (baseUrl: string, prefixes: string[]): Promise<void> => {
+  for (const prefix of prefixes) {
+    const response = await fetch(
+      `${baseUrl}/api/suggest?q=${encodeURIComponent(prefix)}&limit=${config.defaultSuggestLimit}`
+    );
+
+    if (!response.ok) {
+      throw new Error(`Cache warm-up failed for prefix "${prefix}"`);
+    }
+  }
+};
+
 const main = async (): Promise<void> => {
   const baseUrl = await resolveBaseUrl();
   const queries = await loadDatasetQueries();
@@ -118,34 +130,44 @@ const main = async (): Promise<void> => {
   );
 
   const metricsBefore = await readMetrics(baseUrl);
-  const coldLatencies: number[] = [];
-  const warmLatencies: number[] = [];
+  const suggestionLatencies: number[] = [];
+  const measuredRounds = 4;
 
-  for (const prefix of uniquePrefixes) {
-    const cold = await timedFetch(
-      `${baseUrl}/api/suggest?q=${encodeURIComponent(prefix)}&limit=${config.defaultSuggestLimit}`
-    );
+  console.log(`Benchmark target: ${baseUrl}`);
+  console.log(`Dataset file: ${datasetPath}`);
+  console.log(`Unique prefixes sampled: ${uniquePrefixes.length}`);
+  console.log(`Measured suggest rounds after warm-up: ${measuredRounds}`);
+  console.log("");
+  console.log("Warming suggestion cache...");
 
-    if (!cold.response.ok) {
-      throw new Error(`Cold suggest request failed for prefix "${prefix}"`);
+  await warmSuggestionCache(baseUrl, uniquePrefixes);
+
+  console.log("Cache warm-up complete.");
+  console.log("Running measured suggestion requests...");
+
+  for (let round = 0; round < measuredRounds; round += 1) {
+    for (const prefix of uniquePrefixes) {
+      const request = await timedFetch(
+        `${baseUrl}/api/suggest?q=${encodeURIComponent(prefix)}&limit=${config.defaultSuggestLimit}`
+      );
+
+      if (!request.response.ok) {
+        throw new Error(`Suggest request failed for prefix "${prefix}" during round ${round + 1}`);
+      }
+
+      suggestionLatencies.push(request.durationMs);
     }
-
-    coldLatencies.push(cold.durationMs);
-
-    const warm = await timedFetch(
-      `${baseUrl}/api/suggest?q=${encodeURIComponent(prefix)}&limit=${config.defaultSuggestLimit}`
-    );
-
-    if (!warm.response.ok) {
-      throw new Error(`Warm suggest request failed for prefix "${prefix}"`);
-    }
-
-    warmLatencies.push(warm.durationMs);
   }
 
   const searchEventCount = 120;
-  const searchQueries = Array.from({ length: searchEventCount }, (_, index) => queries[index % queries.length]);
+  const searchQueries = Array.from(
+    { length: searchEventCount },
+    (_, index) => queries[index % queries.length]
+  );
   const searchStart = performance.now();
+
+  console.log("");
+  console.log("Submitting search events...");
 
   await Promise.all(
     searchQueries.map(async (query) => {
@@ -167,7 +189,6 @@ const main = async (): Promise<void> => {
   await sleep(config.flushIntervalMs + 1000);
 
   const metricsAfter = await readMetrics(baseUrl);
-  const combinedSuggestLatencies = [...coldLatencies, ...warmLatencies];
   const cacheLookupsDelta =
     metricsAfter.cacheHits +
     metricsAfter.cacheMisses -
@@ -184,16 +205,13 @@ const main = async (): Promise<void> => {
     distinctRowsWrittenDelta === 0 ? 0 : totalSearchEventsDelta / distinctRowsWrittenDelta;
   const throughputPerSecond = searchEventCount / (searchDurationMs / 1000);
 
-  console.log(`Benchmark target: ${baseUrl}`);
-  console.log(`Dataset file: ${datasetPath}`);
   console.log("");
   console.log("Suggestion latency");
-  console.log(`Average: ${average(combinedSuggestLatencies).toFixed(2)} ms`);
-  console.log(`p50: ${percentile(combinedSuggestLatencies, 0.5).toFixed(2)} ms`);
-  console.log(`p95: ${percentile(combinedSuggestLatencies, 0.95).toFixed(2)} ms`);
-  console.log(`p99: ${percentile(combinedSuggestLatencies, 0.99).toFixed(2)} ms`);
-  console.log(`Cold average: ${average(coldLatencies).toFixed(2)} ms`);
-  console.log(`Warm average: ${average(warmLatencies).toFixed(2)} ms`);
+  console.log(`Average: ${average(suggestionLatencies).toFixed(2)} ms`);
+  console.log(`p50: ${percentile(suggestionLatencies, 0.5).toFixed(2)} ms`);
+  console.log(`p95: ${percentile(suggestionLatencies, 0.95).toFixed(2)} ms`);
+  console.log(`p99: ${percentile(suggestionLatencies, 0.99).toFixed(2)} ms`);
+  console.log(`Measured requests: ${suggestionLatencies.length}`);
   console.log("");
   console.log("Cache behavior");
   console.log(`Observed cache hit rate: ${(cacheHitRate * 100).toFixed(2)}%`);

@@ -3,14 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Search Typeahead System</title>
+    <title>PrefixPulse: Search Typeahead System</title>
     <link rel="stylesheet" href="/style.css" />
   </head>
   <body>
     <main class="page-shell">
       <section class="hero-card">
         <p class="eyebrow">HLD101 Assignment</p>
-        <h1>Search Typeahead System</h1>
+        <h1>PrefixPulse</h1>
         <p class="hero-copy">
           Type a prefix to fetch suggestions from the in-memory Prefix Index. Submitting a
           search queues a batched write and updates recent trending activity in Redis.
@@ -19,16 +19,30 @@
         <div class="search-card">
           <label for="searchInput">Search query</label>
           <div class="search-row">
-            <input
-              id="searchInput"
-              type="text"
-              placeholder="Try: iph, python, machine..."
-              autocomplete="off"
-            />
+            <div class="input-shell">
+              <input
+                id="searchInput"
+                type="text"
+                placeholder="Try: iph, python, machine..."
+                autocomplete="off"
+                aria-autocomplete="list"
+                aria-controls="suggestionList"
+              />
+              <button id="clearButton" class="clear-button" type="button" aria-label="Clear search">
+                Clear
+              </button>
+            </div>
             <button id="submitButton" type="button">Search</button>
           </div>
-          <p id="statusMessage" class="status-message">Popular suggestions are shown when the input is empty.</p>
-          <p id="sourceBadge" class="source-badge">Source: waiting</p>
+          <div class="search-meta">
+            <p id="statusMessage" class="status-message">
+              Popular suggestions are shown when the input is empty.
+            </p>
+            <p id="sourceBadge" class="source-badge">waiting</p>
+          </div>
+          <p class="search-hint">
+            Use arrow keys to move through suggestions, press Enter to submit, or click any item.
+          </p>
           <ul id="suggestionList" class="suggestion-list" aria-label="Suggestions"></ul>
         </div>
       </section>
@@ -61,4 +75,3 @@
     <script src="/script.js"></script>
   </body>
 </html>
-

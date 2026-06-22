@@ -139,3 +139,36 @@ curl "http://localhost:3000/api/metrics"
 - `200`: metrics returned successfully
 - `500`: unexpected server error
 
+## `GET /api/cache-routing`
+
+- Endpoint: `/api/cache-routing?key=<cacheKey>`
+- Method: `GET`
+- Purpose: demonstrates consistent-hashing key routing for HLD scaling explanation
+
+### Request
+
+- Query parameter `key`: cache key to route, such as `suggest:iph:10`
+
+### Example cURL
+
+```bash
+curl "http://localhost:3000/api/cache-routing?key=suggest:iph:10"
+```
+
+### Response
+
+```json
+{
+  "key": "suggest:iph:10",
+  "selectedNode": "cache-node-b",
+  "replicas": 100,
+  "strategy": "consistent_hashing_simulation",
+  "note": "The main app uses one Redis instance locally. This endpoint demonstrates how cache keys can be distributed across multiple cache nodes in a scaled design."
+}
+```
+
+### Status Codes
+
+- `200`: route result returned successfully
+- `400`: missing cache key
+- `500`: unexpected server error

@@ -1,70 +1,48 @@
-# Search Typeahead System
+# PrefixPulse: Search Typeahead System
 
-This project is an original backend implementation for an HLD101 assignment. It provides prefix-based search suggestions, batched search-count updates, recent trending queries, Redis caching, a simple browser UI, and benchmark tooling.
+PrefixPulse is a student-friendly HLD101 backend project for search typeahead and autocomplete. It keeps the original architecture intentionally simple: PostgreSQL stores durable counts, Redis speeds up hot reads, an in-memory Prefix Index handles fast prefix lookup, and a batch writer reduces repeated database updates when users submit searches.
 
-## Project Overview
+## Overview
 
-The system suggests popular search queries as a user types. PostgreSQL is the durable source of truth, Redis is the fast cache layer, and the application keeps a memory-bounded Prefix Index in the API process for low-latency lookups.
+The system suggests popular queries as the user types, records submitted searches, tracks recent trending activity, and exposes a small frontend for demonstration. It also includes a benchmark script, lightweight automated tests, and an optional consistent-hashing simulation endpoint for HLD scalability discussion.
 
 ## Features
 
-- Prefix-based suggestion lookup using an in-memory `Map<string, Suggestion[]>`
-- Top suggestions sorted by total search count
-- Search submission API with batched PostgreSQL writes
-- Redis-backed prefix cache for repeated suggestion lookups
-- Recent trending queries tracked with Redis sorted sets
-- Student-friendly frontend built with plain HTML, CSS, and JavaScript
-- Seed script for loading CSV data into PostgreSQL
-- Benchmark script for latency, cache behavior, and batching analysis
-- Documentation for API, architecture, report content, and future scaling
+- Prefix-based typeahead lookup using an in-memory `Map<string, Suggestion[]>`
+- Suggestions sorted by total search count
+- Search submission API with batched PostgreSQL UPSERT writes
+- Redis suggestion caching with TTL-based reuse
+- Recent trending queries powered by Redis sorted-set buckets
+- Plain HTML, CSS, and JavaScript frontend with keyboard-friendly suggestions
+- Seed script for loading `data/search_queries.csv`
+- Benchmark script for real latency and batching measurements
+- Lightweight unit tests for core logic
+- Optional consistent-hashing cache-routing demo for scalability explanation
 
 ## Architecture Summary
 
-- `PostgreSQL`: persistent store for normalized search terms and counts
-- `Redis`: suggestion cache and recent-activity buckets for trending
-- `Express + TypeScript`: API layer and static frontend host
-- `Prefix Index`: in-memory prefix map containing only the top `K` suggestions per prefix
-- `Batch Writer`: aggregates repeated searches before writing to PostgreSQL
+Current architecture:
+
+`Frontend UI -> Express TypeScript backend -> Redis cache -> in-memory Prefix Index fallback -> PostgreSQL source of truth -> batch writer for search count updates`
+
+Supporting pieces:
+
+- `Redis sorted sets`: trending search activity
+- `Metrics endpoint`: request, cache, and batching counters
+- `Optional cache-routing simulation`: HLD extension only, not part of the live suggest path
 
 More detail is available in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-## Project Structure
+## Tech Stack
 
-```text
-search-typeahead-system/
-├── README.md
-├── docker-compose.yml
-├── Dockerfile
-├── package.json
-├── tsconfig.json
-├── .env.example
-├── data/
-│   └── search_queries.csv
-├── docs/
-│   ├── API.md
-│   ├── ARCHITECTURE.md
-│   ├── REPORT.md
-│   └── SCALING.md
-├── public/
-│   ├── index.html
-│   ├── style.css
-│   └── script.js
-├── scripts/
-│   ├── seed.ts
-│   └── benchmark.ts
-└── src/
-    ├── server.ts
-    ├── config.ts
-    ├── db.ts
-    ├── redis.ts
-    ├── prefixIndex.ts
-    ├── suggestionService.ts
-    ├── searchService.ts
-    ├── trendingService.ts
-    ├── batchWriter.ts
-    ├── metrics.ts
-    └── types.ts
-```
+- Node.js
+- TypeScript
+- Express.js
+- PostgreSQL
+- Redis
+- Docker Compose
+- Vitest
+- Plain HTML, CSS, JavaScript
 
 ## Setup Instructions
 
@@ -80,18 +58,19 @@ npm install
 cp .env.example .env
 ```
 
-### 3. Start infrastructure with Docker Compose
+### 3. Start local infrastructure
 
 ```bash
 docker compose up --build
 ```
 
-Notes:
+Compose services:
 
-- The Compose app runs on `http://localhost:3001`.
-- PostgreSQL runs on `localhost:5432`.
-- Redis runs on `localhost:6379`.
-- The Compose app uses port `3001` so you can still run `npm run dev` locally on `3000` without a port conflict.
+- `app` on `http://localhost:3001`
+- `postgres` on `localhost:5432`
+- `redis` on `localhost:6379`
+
+The Compose app uses port `3001`, so you can still run `npm run dev` locally on `3000`.
 
 ### 4. Load the dataset
 
@@ -99,67 +78,76 @@ Notes:
 npm run seed
 ```
 
-The seed script:
-
-- creates the required table if it does not exist
-- reads `data/search_queries.csv`
-- normalizes queries with lowercase + trim + collapsed spaces
-- ignores empty rows
-- inserts or refreshes initial counts in PostgreSQL
-
 ### 5. Run the local development server
 
 ```bash
 npm run dev
 ```
 
-Local dev server:
+Local dev app:
 
-- app URL: `http://localhost:3000`
-- frontend UI: `http://localhost:3000`
+- backend + frontend on `http://localhost:3000`
 
-If you prefer container-only execution, you can use the Compose app on `http://localhost:3001` instead of running `npm run dev`.
+## Docker Instructions
+
+Use Docker when you want the full three-service setup defined in `docker-compose.yml`.
+
+Typical flow:
+
+```bash
+docker compose up --build
+npm run seed
+```
+
+Quick verification after startup:
+
+```bash
+curl "http://localhost:3001/health"
+curl "http://localhost:3001/api/suggest?q=iph&limit=5"
+curl "http://localhost:3001/api/trending?limit=5"
+```
 
 ## Dataset Loading Instructions
 
-The starter dataset lives in [data/search_queries.csv](data/search_queries.csv). It uses the required format:
+The starter dataset lives in [data/search_queries.csv](data/search_queries.csv).
 
-```csv
-query,count
-iphone 15,45222
-iphone charger,44300
-python tutorial,43112
-machine learning,38290
-```
+Seed behavior:
 
-You can replace this file with a larger CSV as long as it keeps the same header and column order.
+- creates the required table if needed
+- reads CSV rows from `data/search_queries.csv`
+- normalizes queries by lowercasing, trimming, and collapsing whitespace
+- ignores empty queries
+- inserts or refreshes counts in PostgreSQL
 
 ## API Summary
 
 - `GET /api/suggest?q=<prefix>&limit=10`
-  Returns top suggestions for a prefix.
+  Returns prefix suggestions from Redis cache or the Prefix Index.
 - `POST /api/search`
-  Queues a searched term for batched persistence and updates recent trending activity.
+  Accepts a search query, queues it for batched persistence, and updates trending activity.
 - `GET /api/trending?limit=10`
-  Returns recent trending searches from Redis activity buckets.
+  Returns recent trending queries.
 - `GET /api/metrics`
-  Returns request counts, cache statistics, and batching metrics.
+  Returns runtime counters for cache and batching behavior.
+- `GET /api/cache-routing?key=<cacheKey>`
+  Demonstrates consistent-hashing key routing for HLD scaling discussion only.
 
 Full endpoint documentation is in [docs/API.md](docs/API.md).
 
-## Frontend
+## Frontend Usage
 
-The frontend is served by the same Express app and uses the backend APIs directly.
+The frontend is served by Express from `public/`.
 
-Features:
+Available interactions:
 
-- debounced suggestion lookups
-- clickable suggestions
-- Enter-to-search behavior
-- trending search panel
-- simple loading and error states
+- type into the search box to fetch suggestions
+- use the clear button to reset the input
+- use arrow keys to move through suggestions
+- press Enter to submit the highlighted suggestion or current input
+- click any suggestion to submit it directly
+- refresh the trending panel from the UI
 
-## Benchmark
+## Benchmark Instructions
 
 Run:
 
@@ -167,42 +155,50 @@ Run:
 npm run benchmark
 ```
 
-The benchmark script reports:
-
-- average suggestion latency
-- p50 latency
-- p95 latency
-- p99 latency
-- observed cache hit rate
-- search submission throughput
-- batch flush count delta
-- estimated write reduction
-
-If you are benchmarking the Compose app instead of local dev, use:
+If you want to benchmark the Docker app instead of local dev:
 
 ```bash
 BENCHMARK_BASE_URL=http://localhost:3001 npm run benchmark
 ```
 
-## Useful Commands
+Results should be copied into [docs/BENCHMARK_RESULTS.md](docs/BENCHMARK_RESULTS.md) after an actual run. The repository intentionally keeps placeholders instead of invented numbers.
+
+## Testing Instructions
+
+Run:
 
 ```bash
-npm run build
-npm start
-npm run seed
-npm run benchmark
+npm test
 ```
+
+Current tests focus on:
+
+- Prefix Index prefix lookup and ordering
+- query normalization
+- duplicate aggregation in the batch writer
+- deterministic consistent-hash routing behavior
+
+## Report / PDF Instructions
+
+Submission-friendly documents:
+
+- [docs/API.md](docs/API.md)
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- [docs/REPORT.md](docs/REPORT.md)
+- [docs/BENCHMARK_RESULTS.md](docs/BENCHMARK_RESULTS.md)
+
+You can convert `docs/REPORT.md` into PDF after filling in the real benchmark observations.
 
 ## Final Submission Checklist
 
 - `npm install` completes successfully
-- `docker compose up --build` starts `app`, `postgres`, and `redis`
-- `npm run seed` loads the dataset into PostgreSQL
-- `npm run dev` starts the local server
-- frontend loads in the browser
-- all APIs respond as documented
-- `npm run benchmark` produces real measurements
-- documentation files are ready for conversion to PDF if needed
+- `docker compose up --build` starts only `app`, `postgres`, and `redis`
+- `npm run seed` loads the dataset
+- `npm run dev` starts the local development server
+- `npm test` passes
+- `npm run benchmark` runs against a live server and produces real measurements
+- README and report docs are ready for submission
+- benchmark placeholders are replaced only after a real run
 
 ## Final Commit Hash
 
