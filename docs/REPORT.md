@@ -129,17 +129,17 @@ Important boundaries:
 
 ## 7. Dashboard Screenshots
 
-The frontend was redesigned as a screenshot-friendly dark tabbed infrastructure dashboard for submission use. Screenshot files should be captured locally after running the app; the report does not claim they already exist in the repository.
+The frontend was redesigned as a screenshot-friendly light infrastructure dashboard for submission use. Screenshot files should be captured locally after running the app; the report does not claim they already exist in the repository.
 
 Recommended screenshot paths:
 
-- `docs/screenshots/01-search-home.png`
-- `docs/screenshots/02-suggestions-iph.png`
-- `docs/screenshots/03-suggestions-py.png`
-- `docs/screenshots/04-cache-hit.png`
-- `docs/screenshots/05-trending-tab.png`
-- `docs/screenshots/06-metrics-tab.png`
-- `docs/screenshots/07-routing-tab.png`
+- `docs/screenshots/home.png`
+- `docs/screenshots/suggestions-iph.png`
+- `docs/screenshots/suggestions-py.png`
+- `docs/screenshots/cache-hit.png`
+- `docs/screenshots/trending.png`
+- `docs/screenshots/metrics-dashboard.png`
+- `docs/screenshots/cache-routing.png`
 
 ## 8. Limitations
 

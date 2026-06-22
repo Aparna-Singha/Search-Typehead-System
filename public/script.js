@@ -10,8 +10,6 @@ const statusMessage = document.getElementById("statusMessage");
 const sourceBadge = document.getElementById("sourceBadge");
 const lookupModeChip = document.getElementById("lookupModeChip");
 const cacheStatusChip = document.getElementById("cacheStatusChip");
-const tabButtons = Array.from(document.querySelectorAll(".tab-button"));
-const tabPanels = Array.from(document.querySelectorAll(".tab-panel"));
 
 const metricFields = {
   lastPrefix: document.getElementById("lastPrefixValue"),
@@ -124,37 +122,6 @@ const updateRequestInsightFields = () => {
   setText(metricFields.lastPrefix, state.lastPrefix);
   setText(metricFields.lastSource, state.lastSource);
   setText(metricFields.cacheStatus, state.lastCacheStatus);
-};
-
-const switchTab = async (targetId) => {
-  tabButtons.forEach((button) => {
-    const isActive = button.dataset.tabTarget === targetId;
-    button.classList.toggle("is-active", isActive);
-    button.setAttribute("aria-selected", isActive ? "true" : "false");
-  });
-
-  tabPanels.forEach((panel) => {
-    panel.hidden = panel.id !== targetId;
-  });
-
-  if (targetId === "panel-search") {
-    searchInput.focus();
-    return;
-  }
-
-  if (targetId === "panel-trending") {
-    await loadTrending();
-    return;
-  }
-
-  if (targetId === "panel-metrics") {
-    await loadMetrics();
-    return;
-  }
-
-  if (targetId === "panel-routing") {
-    await loadCacheRouting();
-  }
 };
 
 const createSuggestionLabel = (query, prefix) => {
@@ -308,7 +275,10 @@ const loadMetrics = async () => {
     setText(metricFields.writeReductionEstimate, metrics.writeReductionEstimate);
     updateRequestInsightFields();
   } catch (error) {
-    setText(metricFields.writeReductionEstimate, getErrorMessage(error, "Unable to load metrics."));
+    setText(
+      metricFields.writeReductionEstimate,
+      getErrorMessage(error, "Unable to load metrics.")
+    );
   }
 };
 
@@ -349,7 +319,10 @@ const loadCacheRouting = async () => {
     setText(metricFields.routingNote, payload.note);
   } catch (error) {
     setText(metricFields.routingNode, "error");
-    setText(metricFields.routingNote, getErrorMessage(error, "Unable to load cache routing details."));
+    setText(
+      metricFields.routingNote,
+      getErrorMessage(error, "Unable to load cache routing details.")
+    );
   }
 };
 
@@ -514,12 +487,6 @@ routingKeyInput.addEventListener("keydown", (event) => {
     event.preventDefault();
     void loadCacheRouting();
   }
-});
-
-tabButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    void switchTab(button.dataset.tabTarget);
-  });
 });
 
 updateRequestInsightFields();

@@ -158,29 +158,29 @@ Available interactions:
 - use arrow keys to move through suggestions
 - press Enter to submit the highlighted suggestion or current input
 - click any suggestion to submit it directly
-- refresh the Trending tab from the UI
-- inspect the Metrics tab for request, cache, and batch-write signals
-- inspect the Routing tab for consistent-hashing cache-routing simulation
+- refresh the Trending section from the UI
+- inspect the metrics cards for request, cache, and batch-write signals
+- inspect the cache-routing card for consistent-hashing simulation
 
 ## Screenshots
 
-Capture these screenshots after running the app locally. The paths below are placeholders for submission packaging and should only be populated after you save real screenshots from the dark tabbed dashboard.
+Capture these screenshots after running the app locally. The paths below are placeholders for submission packaging and should only be populated after you save real screenshots from the current light dashboard.
 
-- `docs/screenshots/01-search-home.png`
-- `docs/screenshots/02-suggestions-iph.png`
-- `docs/screenshots/03-suggestions-py.png`
-- `docs/screenshots/04-cache-hit.png`
-- `docs/screenshots/05-trending-tab.png`
-- `docs/screenshots/06-metrics-tab.png`
-- `docs/screenshots/07-routing-tab.png`
+- `docs/screenshots/home.png`
+- `docs/screenshots/suggestions-iph.png`
+- `docs/screenshots/suggestions-py.png`
+- `docs/screenshots/cache-hit.png`
+- `docs/screenshots/trending.png`
+- `docs/screenshots/metrics-dashboard.png`
+- `docs/screenshots/cache-routing.png`
 
 Suggested capture flow:
 
 1. Open `http://localhost:3000`
-2. Capture the Search tab with an empty input
+2. Capture the home dashboard with an empty input
 3. Type `iph`, `py`, and another repeated prefix to show cache behavior
-4. Submit a search like `iphone 15` and capture the Trending tab
-5. Capture the Metrics tab and Routing tab
+4. Submit a search like `iphone 15` and capture the trending section
+5. Capture the metrics dashboard and cache-routing card
 
 ## Benchmark Instructions
 
