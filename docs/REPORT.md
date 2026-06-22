@@ -19,7 +19,15 @@ The detailed diagram and read/write path explanation are documented in [ARCHITEC
 
 ## 2. Dataset Source and Loading Instructions
 
-The starter dataset is stored in [data/search_queries.csv](../data/search_queries.csv). It is included in the repository as a clean local dataset for assignment demonstration and testing.
+The dataset is stored in [data/search_queries.csv](../data/search_queries.csv). It is a curated sample dataset created for this assignment. It contains common search-style queries with synthetic frequency counts and is used to demonstrate autocomplete ranking, caching, trending updates, and batch write behavior.
+
+Dataset note:
+
+- dataset path: `data/search_queries.csv`
+- dataset size: around 200 rows
+- format: `query,count`
+- counts are synthetic positive integers
+- curated data was chosen to keep the demonstration clean, safe, and submission-friendly
 
 Loading flow:
 

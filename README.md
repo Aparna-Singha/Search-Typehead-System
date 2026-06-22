@@ -109,15 +109,28 @@ curl "http://localhost:3001/api/trending?limit=5"
 
 ## Dataset Loading Instructions
 
-The starter dataset lives in [data/search_queries.csv](data/search_queries.csv).
+The dataset lives in [data/search_queries.csv](data/search_queries.csv).
+
+This dataset is a curated sample dataset created for this assignment. It contains common search-style queries with synthetic frequency counts and is used to demonstrate autocomplete ranking, caching, trending updates, and batch write behavior.
 
 Seed behavior:
 
+- dataset path: `data/search_queries.csv`
+- dataset size: about 200 rows
+- format: `query,count`
+- frequency counts are synthetic positive integers
 - creates the required table if needed
 - reads CSV rows from `data/search_queries.csv`
 - normalizes queries by lowercasing, trimming, and collapsing whitespace
 - ignores empty queries
+- ignores invalid counts
 - inserts or refreshes counts in PostgreSQL
+
+To reload the dataset after editing the CSV:
+
+```bash
+npm run seed
+```
 
 ## API Summary
 

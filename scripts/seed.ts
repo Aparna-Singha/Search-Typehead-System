@@ -25,13 +25,13 @@ const parseLine = (line: string): { query: string; count: number } | null => {
   const query = normalizeQuery(rawQuery);
   const count = Number(rawCount);
 
-  if (!query || !Number.isFinite(count) || count < 0) {
+  if (!query || !Number.isFinite(count) || !Number.isInteger(count) || count <= 0) {
     return null;
   }
 
   return {
     query,
-    count: Math.trunc(count)
+    count
   };
 };
 
@@ -40,12 +40,16 @@ const main = async (): Promise<void> => {
   const lines = csvContent.split(/\r?\n/);
   const dataLines = lines.slice(1);
   const parsedRecords: Array<{ query: string; count: number }> = [];
+  const nonEmptyRows = dataLines.filter((line) => line.trim().length > 0).length;
+  let skippedRows = 0;
 
   for (const line of dataLines) {
     const parsed = parseLine(line);
 
     if (parsed) {
       parsedRecords.push(parsed);
+    } else if (line.trim()) {
+      skippedRows += 1;
     }
   }
 
@@ -61,7 +65,9 @@ const main = async (): Promise<void> => {
   }
 
   console.log(`Seed completed.`);
-  console.log(`CSV rows processed: ${parsedRecords.length}`);
+  console.log(`CSV non-empty rows read: ${nonEmptyRows}`);
+  console.log(`CSV valid rows accepted: ${parsedRecords.length}`);
+  console.log(`CSV rows skipped: ${skippedRows}`);
   console.log(`Rows inserted or refreshed: ${upserted.length}`);
   console.log(`Dataset path: ${csvPath}`);
   await closeDatabase();
