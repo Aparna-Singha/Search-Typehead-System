@@ -15,12 +15,12 @@ interface BatchWriterDependencies {
 }
 
 const defaultApplyUpdates: ApplyBatchUpdatesFn = async (updates) => {
-  const { applyBatchUpdates } = await import("./db");
+  const { applyBatchUpdates } = require("./db") as typeof import("./db");
   return applyBatchUpdates(updates);
 };
 
 const defaultDeleteKeys: DeleteKeysByPatternsFn = async (patterns) => {
-  const { deleteKeysByPatterns } = await import("./redis");
+  const { deleteKeysByPatterns } = require("./redis") as typeof import("./redis");
   return deleteKeysByPatterns(patterns);
 };
 

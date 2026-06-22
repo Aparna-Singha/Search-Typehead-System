@@ -159,6 +159,28 @@ Available interactions:
 - press Enter to submit the highlighted suggestion or current input
 - click any suggestion to submit it directly
 - refresh the trending panel from the UI
+- inspect the metrics cards for request, cache, and batch-write signals
+- inspect the HLD demo card for consistent-hashing cache-routing simulation
+
+## Screenshots
+
+Capture these screenshots after running the app locally. The paths below are placeholders for submission packaging and should only be populated after you save real screenshots.
+
+- `docs/screenshots/home.png`
+- `docs/screenshots/suggestions-iph.png`
+- `docs/screenshots/suggestions-py.png`
+- `docs/screenshots/cache-hit.png`
+- `docs/screenshots/trending.png`
+- `docs/screenshots/metrics-dashboard.png`
+- `docs/screenshots/cache-routing.png`
+
+Suggested capture flow:
+
+1. Open `http://localhost:3000`
+2. Capture the home dashboard with an empty input
+3. Type `iph`, `py`, and another repeated prefix to show cache behavior
+4. Submit a search like `iphone 15` and capture the trending view
+5. Capture the metrics dashboard and cache-routing card
 
 ## Benchmark Instructions
 
@@ -199,6 +221,7 @@ Submission-friendly documents:
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - [docs/REPORT.md](docs/REPORT.md)
 - [docs/BENCHMARK_RESULTS.md](docs/BENCHMARK_RESULTS.md)
+- screenshot placeholders under `docs/screenshots/`
 
 You can convert `docs/REPORT.md` into PDF after filling in the real benchmark observations.
 

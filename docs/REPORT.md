@@ -127,20 +127,34 @@ Important boundaries:
 - `/api/suggest` does not depend on the consistent-hashing module
 - `GET /api/cache-routing` is an explanatory endpoint only
 
-## 7. Limitations
+## 7. Dashboard Screenshots
+
+The frontend was redesigned as a screenshot-friendly infrastructure dashboard for submission use. Screenshot files should be captured locally after running the app; the report does not claim they already exist in the repository.
+
+Recommended screenshot paths:
+
+- `docs/screenshots/home.png`
+- `docs/screenshots/suggestions-iph.png`
+- `docs/screenshots/suggestions-py.png`
+- `docs/screenshots/cache-hit.png`
+- `docs/screenshots/trending.png`
+- `docs/screenshots/metrics-dashboard.png`
+- `docs/screenshots/cache-routing.png`
+
+## 8. Limitations
 
 - the Prefix Index is process-local and not shared across multiple API servers
 - cache invalidation currently scans matching suggestion keys
 - recent trending is approximate because it is bucket-based
 - queued writes are in memory until the next successful flush
 
-## 8. Future Improvements
+## 9. Future Improvements
 
 - move batched writes to Kafka or RabbitMQ for stronger durability
 - synchronize prefix updates across multiple API servers
 - add broader integration testing around API routes
 - extend benchmark runs with repeated multi-round datasets
 
-## 9. Conclusion
+## 10. Conclusion
 
 PrefixPulse meets the assignment goals while keeping the implementation readable, modular, and easy to explain. The system balances low-latency reads, durable persistence, recent trending behavior, and write-efficiency through batching, while also including testing and an optional HLD scalability demonstration.

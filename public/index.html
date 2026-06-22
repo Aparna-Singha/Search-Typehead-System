@@ -7,67 +7,251 @@
     <link rel="stylesheet" href="/style.css" />
   </head>
   <body>
-    <main class="page-shell">
-      <section class="hero-card">
-        <p class="eyebrow">HLD101 Assignment</p>
-        <h1>PrefixPulse</h1>
-        <p class="hero-copy">
-          Type a prefix to fetch suggestions from the in-memory Prefix Index. Submitting a
-          search queues a batched write and updates recent trending activity in Redis.
-        </p>
-
-        <div class="search-card">
-          <label for="searchInput">Search query</label>
-          <div class="search-row">
-            <div class="input-shell">
-              <input
-                id="searchInput"
-                type="text"
-                placeholder="Try: iph, python, machine..."
-                autocomplete="off"
-                aria-autocomplete="list"
-                aria-controls="suggestionList"
-              />
-              <button id="clearButton" class="clear-button" type="button" aria-label="Clear search">
-                Clear
-              </button>
+    <main class="dashboard-shell">
+      <header class="hero-panel">
+        <div class="hero-main">
+          <div class="brand-row">
+            <div class="brand-badge" aria-hidden="true">PP</div>
+            <div>
+              <p class="eyebrow">HLD101 Assignment</p>
+              <p class="project-name">PrefixPulse</p>
             </div>
-            <button id="submitButton" type="button">Search</button>
           </div>
-          <div class="search-meta">
-            <p id="statusMessage" class="status-message">
-              Popular suggestions are shown when the input is empty.
-            </p>
-            <p id="sourceBadge" class="source-badge">waiting</p>
-          </div>
-          <p class="search-hint">
-            Use arrow keys to move through suggestions, press Enter to submit, or click any item.
+          <h1>Fast typeahead with Redis caching and Prefix Index ranking</h1>
+          <p class="hero-copy">
+            Serve ranked prefix suggestions using an in-memory Prefix Index, Redis cache,
+            PostgreSQL persistence, and batched search updates.
           </p>
-          <ul id="suggestionList" class="suggestion-list" aria-label="Suggestions"></ul>
         </div>
+
+        <div class="system-badges" aria-label="System badges">
+          <div class="system-badge">
+            <span class="system-badge-label">Indexed</span>
+            <strong>199</strong>
+          </div>
+          <div class="system-badge">
+            <span class="system-badge-label">Source</span>
+            <strong>PostgreSQL</strong>
+          </div>
+          <div class="system-badge">
+            <span class="system-badge-label">Cache</span>
+            <strong>Redis</strong>
+          </div>
+          <div class="system-badge">
+            <span class="system-badge-label">Index</span>
+            <strong>Prefix Index</strong>
+          </div>
+        </div>
+      </header>
+
+      <section class="search-card panel">
+        <div class="card-topline">
+          <div>
+            <p class="section-label">Search Console</p>
+            <h2>Ranked prefix suggestions</h2>
+          </div>
+          <div class="result-source">
+            <span class="result-source-label">Result source</span>
+            <span id="sourceBadge" class="source-badge">waiting</span>
+          </div>
+        </div>
+
+        <div class="search-row">
+          <div class="input-shell">
+            <label class="visually-hidden" for="searchInput">Search query</label>
+            <input
+              id="searchInput"
+              type="text"
+              placeholder="Try: iph, py, rea, do"
+              autocomplete="off"
+              aria-autocomplete="list"
+              aria-controls="suggestionList"
+            />
+          </div>
+          <button id="submitButton" class="primary-button" type="button">Search</button>
+          <button id="clearButton" class="secondary-button" type="button" aria-label="Clear search">
+            Clear
+          </button>
+        </div>
+
+        <div class="search-meta">
+          <p id="statusMessage" class="status-message">
+            Showing popular searches because the input is empty
+          </p>
+          <p class="search-hint">
+            Arrow keys navigate results. Enter submits the selected suggestion.
+          </p>
+        </div>
+
+        <ul id="suggestionList" class="suggestion-list" aria-label="Suggestions"></ul>
       </section>
 
-      <section class="content-grid">
+      <section class="metrics-grid" aria-label="Dashboard metrics">
+        <article class="metric-card panel">
+          <div class="card-topline">
+            <div>
+              <p class="section-label">Request Insights</p>
+              <h3>Live suggest activity</h3>
+            </div>
+          </div>
+          <dl class="metric-list">
+            <div class="metric-row">
+              <dt>Last prefix</dt>
+              <dd id="lastPrefixValue">popular</dd>
+            </div>
+            <div class="metric-row">
+              <dt>Last source</dt>
+              <dd id="lastSourceValue">waiting</dd>
+            </div>
+            <div class="metric-row">
+              <dt>Cache status</dt>
+              <dd id="cacheStatusValue">pending</dd>
+            </div>
+            <div class="metric-row">
+              <dt>Suggest requests</dt>
+              <dd id="suggestRequestsValue">0</dd>
+            </div>
+            <div class="metric-row">
+              <dt>Cache hits</dt>
+              <dd id="cacheHitsValue">0</dd>
+            </div>
+            <div class="metric-row">
+              <dt>Cache misses</dt>
+              <dd id="cacheMissesValue">0</dd>
+            </div>
+            <div class="metric-row">
+              <dt>Cache hit rate</dt>
+              <dd id="cacheHitRateValue">0%</dd>
+            </div>
+          </dl>
+        </article>
+
+        <article class="metric-card panel">
+          <div class="card-topline">
+            <div>
+              <p class="section-label">Write Optimization</p>
+              <h3>Batched persistence stats</h3>
+            </div>
+          </div>
+          <dl class="metric-list">
+            <div class="metric-row">
+              <dt>Search requests</dt>
+              <dd id="searchRequestsValue">0</dd>
+            </div>
+            <div class="metric-row">
+              <dt>Batch flushes</dt>
+              <dd id="batchFlushesValue">0</dd>
+            </div>
+            <div class="metric-row">
+              <dt>Queued writes</dt>
+              <dd id="queuedWritesValue">0</dd>
+            </div>
+            <div class="metric-row">
+              <dt>Total search events</dt>
+              <dd id="totalSearchEventsValue">0</dd>
+            </div>
+            <div class="metric-row">
+              <dt>Distinct rows written</dt>
+              <dd id="distinctRowsWrittenValue">0</dd>
+            </div>
+            <div class="metric-row metric-row-wide">
+              <dt>Write reduction estimate</dt>
+              <dd id="writeReductionEstimateValue">Waiting for activity</dd>
+            </div>
+          </dl>
+        </article>
+
+        <article class="metric-card panel">
+          <div class="card-topline">
+            <div>
+              <p class="section-label">System Architecture</p>
+              <h3>Infrastructure summary</h3>
+            </div>
+          </div>
+          <ul class="architecture-list">
+            <li>
+              <span class="architecture-label">PostgreSQL</span>
+              <span>Persistent query counts</span>
+            </li>
+            <li>
+              <span class="architecture-label">Redis</span>
+              <span>Suggestion cache and recent trending activity</span>
+            </li>
+            <li>
+              <span class="architecture-label">Prefix Index</span>
+              <span>In-memory prefix lookup and ranking</span>
+            </li>
+            <li>
+              <span class="architecture-label">Batch Writer</span>
+              <span>Aggregated search count updates</span>
+            </li>
+            <li>
+              <span class="architecture-label">Consistent Hashing</span>
+              <span>Simulated cache-node routing for HLD scaling</span>
+            </li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="support-grid">
         <article class="panel">
-          <div class="panel-head">
-            <h2>Trending searches</h2>
-            <button id="refreshTrendingButton" class="ghost-button" type="button">Refresh</button>
+          <div class="card-topline">
+            <div>
+              <p class="section-label">Trending Searches</p>
+              <h3>Recent Redis activity</h3>
+            </div>
+            <button id="refreshTrendingButton" class="secondary-button" type="button">
+              Refresh
+            </button>
           </div>
           <p class="panel-copy">
-            This list is based on recent Redis activity buckets, with total count used as a
-            tie-breaker.
+            Trending is based on recent Redis activity with total count used as a tie-breaker.
           </p>
-          <ul id="trendingList" class="trend-list"></ul>
+          <ul id="trendingList" class="trend-list" aria-label="Trending searches"></ul>
         </article>
 
         <article class="panel">
-          <h2>How this demo behaves</h2>
-          <ul class="info-list">
-            <li>Suggestions are debounced before each API call.</li>
-            <li>Redis caches repeated prefix lookups for faster reads.</li>
-            <li>Search submissions return quickly and write to PostgreSQL in batches.</li>
-            <li>New activity can appear in trending before the next database flush finishes.</li>
-          </ul>
+          <div class="card-topline">
+            <div>
+              <p class="section-label">HLD Demo</p>
+              <h3>Consistent hashing cache routing</h3>
+            </div>
+          </div>
+          <p class="panel-copy">
+            The production demo uses one Redis instance locally. This endpoint shows how cache keys
+            can be distributed across logical cache nodes in a scaled design.
+          </p>
+
+          <div class="routing-controls">
+            <div class="input-shell">
+              <label class="visually-hidden" for="routingKeyInput">Cache key</label>
+              <input id="routingKeyInput" type="text" value="suggest:iph:10" />
+            </div>
+            <button id="routeKeyButton" class="primary-button" type="button">Route key</button>
+          </div>
+
+          <dl class="metric-list routing-list">
+            <div class="metric-row">
+              <dt>Key</dt>
+              <dd id="routingKeyValue">suggest:iph:10</dd>
+            </div>
+            <div class="metric-row">
+              <dt>Selected node</dt>
+              <dd id="routingNodeValue">waiting</dd>
+            </div>
+            <div class="metric-row">
+              <dt>Replicas</dt>
+              <dd id="routingReplicasValue">100</dd>
+            </div>
+            <div class="metric-row">
+              <dt>Strategy</dt>
+              <dd id="routingStrategyValue">consistent_hashing_simulation</dd>
+            </div>
+            <div class="metric-row metric-row-wide">
+              <dt>Note</dt>
+              <dd id="routingNoteValue">Run the demo to inspect the routing decision.</dd>
+            </div>
+          </dl>
         </article>
       </section>
     </main>
