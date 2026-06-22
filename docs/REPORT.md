@@ -1,160 +1,264 @@
-# PrefixPulse: Search Typeahead System
+# PrefixPulse: HLD101 Search Typeahead / Autocomplete System
 
 **Student Name:** Aparna Singha  
 **Roll Number:** 24BCS10353  
 **Course:** HLD101
 
-## 1. Architecture Diagram and Explanation
+## 1. Problem Statement
 
-PrefixPulse follows the required layered design:
+The assignment requires a search typeahead / autocomplete backend that can:
 
-- frontend UI for user interaction
-- Express + TypeScript backend for APIs and static asset serving
-- Redis for low-latency cache reads and trending activity buckets
-- in-memory Prefix Index as the main prefix lookup structure
-- PostgreSQL as the durable source of truth
-- batch writer for grouped search-count updates
+- return suggestions quickly for a typed prefix
+- accept search submissions
+- persist durable popularity counts
+- demonstrate caching and scaling ideas
 
-The detailed diagram and read/write path explanation are documented in [ARCHITECTURE.md](ARCHITECTURE.md).
+PrefixPulse implements this using Node.js, TypeScript, Express, PostgreSQL, Redis, and an in-memory Prefix Index.
 
-## 2. Dataset Source and Loading Instructions
+## 2. System Goals
 
-The dataset is stored in [data/search_queries.csv](../data/search_queries.csv). It is a curated sample dataset created for this assignment. It contains common search-style queries with synthetic frequency counts and is used to demonstrate autocomplete ranking, caching, trending updates, and batch write behavior.
+Primary goals:
 
-Dataset note:
+- low-latency prefix lookup
+- durable storage of search counts
+- simple local deployment for demonstration
+- recent trending behavior
+- fewer direct database writes during bursts
 
-- dataset path: `data/search_queries.csv`
-- dataset size: around 200 rows
-- format: `query,count`
-- counts are synthetic positive integers
-- curated data was chosen to keep the demonstration clean, safe, and submission-friendly
+Non-goals for this local assignment:
 
-Loading flow:
+- multi-region deployment
+- real distributed cache sharding in local runtime
+- fully durable event streaming
 
-1. Start PostgreSQL and Redis.
-2. Run `npm run seed`.
-3. The seed script creates the `search_terms` table if it is missing.
-4. Queries are normalized before insert or update.
-5. Empty queries are ignored.
-6. Seeded rows become available for startup index loading.
+## 3. Implemented Architecture
 
-## 3. API Documentation Summary
+The system has these main parts:
 
-Main endpoints:
+- frontend in plain HTML/CSS/JavaScript served from `public/`
+- Express API server written in TypeScript
+- PostgreSQL for persistent query counts
+- Redis for suggestion caching and recent trending buckets
+- in-memory Prefix Index for fast lookup
+- in-memory batch queue for grouped writes
 
-- `GET /api/suggest`
-- `POST /api/search`
-- `GET /api/trending`
-- `GET /api/metrics`
-- `GET /api/cache-routing`
+Detailed read/write flow is documented in [ARCHITECTURE.md](ARCHITECTURE.md).
 
-The `cache-routing` endpoint is only an HLD simulation endpoint. It does not replace the live Redis cache used by `/api/suggest`.
+## 4. Prefix Index Design
 
-Full endpoint details are available in [API.md](API.md).
+The Prefix Index is implemented as:
 
-## 4. Design Choices and Tradeoffs
-
-### Why PostgreSQL
-
-- provides durable storage for normalized search terms
-- supports simple and reliable UPSERT behavior
-- fits the source-of-truth role well for a backend assignment
-
-### Why Redis
-
-- reduces repeated work for hot suggestion prefixes
-- supports sorted-set operations for recent trending activity
-- keeps fast-changing derived data outside the database hot path
-
-### Why Prefix Index
-
-- provides direct lookup for normalized prefixes
-- is simpler to explain than a Trie-based implementation for this submission
-- limits memory usage by keeping only the top `K` suggestions per prefix
-
-### Why Batching
-
-- reduces repeated database writes during traffic bursts
-- keeps search submission latency low
-- combines duplicate queries inside the same flush window
-
-### Tradeoffs
-
-- freshness vs efficiency:
-  counts are slightly delayed until the next flush completes
-- memory vs lookup speed:
-  the Prefix Index uses memory to avoid repeated database scans
-- cache TTL vs staleness:
-  longer TTL can improve hit rate but may serve slightly older suggestions
-- recent activity vs lifetime popularity:
-  trending uses recent activity so the list can react to what users are searching now
-
-## 5. Performance Report
-
-This report intentionally avoids invented benchmark numbers.
-
-Use:
-
-```bash
-npm run benchmark
+```text
+Map<string, Suggestion[]>
 ```
 
-Record the actual results in [BENCHMARK_RESULTS.md](BENCHMARK_RESULTS.md) after running the benchmark on a live setup.
+For each normalized query:
 
-Suggested measurements to capture:
+- all prefixes are generated
+- each prefix stores only the top suggestions
+- sorting is based on descending count and then alphabetical query order
 
-- average suggestion latency
-- p50 latency
-- p95 latency
-- p99 latency
-- cache hit rate
-- total search events submitted
-- batch flush count
-- estimated write reduction
+Why this design was chosen:
 
-## 6. Consistent Hashing HLD Extension
+- simpler to implement and explain than a Trie
+- fast direct lookup
+- good fit for a small curated assignment dataset
 
-The repository includes an optional `ConsistentHashRing` simulation in `src/consistentHash.ts`.
+## 5. Redis Caching Flow
+
+Redis supports two features:
+
+- suggestion caching
+- trending activity aggregation
+
+Suggestion flow:
+
+1. `GET /api/suggest` checks Redis first.
+2. On a cache hit, the cached suggestions are returned.
+3. On a miss, the Prefix Index is used.
+4. The result is written back to Redis with TTL.
+
+This keeps hot prefixes fast without making Redis the source of truth.
+
+## 6. PostgreSQL Persistence
+
+PostgreSQL stores normalized terms in the `search_terms` table.
+
+Stored fields include:
+
+- query text
+- total count
+- recent score
+- update timestamp
+
+The seed process loads the initial dataset, and later search submissions are applied through batched UPSERT updates.
+
+## 7. Batch Write Strategy
+
+Search submissions are not written to PostgreSQL one by one.
+
+Instead:
+
+- accepted searches are placed into an in-memory queue
+- duplicate queries are aggregated
+- flush happens on timer or queue threshold
+- the batch writer updates PostgreSQL and refreshes the Prefix Index
+- affected Redis suggestion keys are invalidated
+
+Benefits:
+
+- fewer repeated row updates
+- faster `POST /api/search` responses
+
+Tradeoff:
+
+- writes are not durable until flush completes
+
+## 8. Trending Strategy
+
+Recent trending is based on Redis sorted-set buckets.
+
+- each search increments the current bucket
+- older buckets expire automatically
+- `GET /api/trending` aggregates recent buckets
+- lifetime count from the Prefix Index is used only as a tie-breaker
+
+This makes the trending view react to current search activity instead of historical popularity alone.
+
+## 9. API Behavior
+
+Implemented routes:
+
+- `GET /api/health`
+- `GET /api/suggest?q=<prefix>&limit=5`
+- `POST /api/search`
+- `GET /api/trending?limit=5`
+- `GET /api/metrics`
+- `GET /api/cache-routing?key=suggest:iph:10`
+
+The cache-routing endpoint is not part of the live data path. It exists only for HLD explanation.
+
+Full examples are in [API.md](API.md).
+
+## 10. Dataset Details
+
+Dataset path:
+
+- `data/search_queries.csv`
+
+Dataset facts:
+
+- `199` valid curated synthetic rows
+- format: `query,count`
+- queries are normalized during seeding
+- invalid rows are skipped
+
+Dataset description:
+
+The dataset is a curated sample dataset created for this assignment. It contains common search-style queries with synthetic frequency counts and is used to demonstrate autocomplete ranking, caching, trending updates, and batch write behavior.
+
+## 11. Consistent Hashing Simulation
+
+The project includes a consistent-hashing demo endpoint:
+
+- `GET /api/cache-routing?key=suggest:iph:10`
 
 Purpose:
 
-- demonstrate how cache keys could be distributed across multiple cache nodes in a scaled design
-- support HLD discussion without changing the actual local architecture
+- explain how cache keys could be distributed across logical cache nodes
+- support scaling discussion in HLD terms
 
-Important boundaries:
+Important limitation:
 
-- the main app still uses a single Redis instance locally
-- `/api/suggest` does not depend on the consistent-hashing module
-- `GET /api/cache-routing` is an explanatory endpoint only
+- the local app still uses one Redis instance
+- live suggestion requests do not use the consistent-hash ring
 
-## 7. Dashboard Screenshots
+## 12. Performance and Benchmarking
 
-The frontend was redesigned as a screenshot-friendly light infrastructure dashboard for submission use. Screenshot files should be captured locally after running the app; the report does not claim they already exist in the repository.
+The benchmark was run with:
 
-Recommended screenshot paths:
+```powershell
+npm run benchmark
+```
 
-- `docs/screenshots/home.png`
-- `docs/screenshots/suggestions-iph.png`
-- `docs/screenshots/suggestions-py.png`
-- `docs/screenshots/cache-hit.png`
-- `docs/screenshots/trending.png`
-- `docs/screenshots/metrics-dashboard.png`
-- `docs/screenshots/cache-routing.png`
+Measured benchmark summary:
 
-## 8. Limitations
+| Metric | Value |
+|---|---:|
+| Benchmark target | `http://localhost:3000` |
+| Unique prefixes sampled | 29 |
+| Measured suggestion requests | 116 |
+| Average suggestion latency | 1.09 ms |
+| p50 latency | 1.01 ms |
+| p95 latency | 1.85 ms |
+| p99 latency | 2.64 ms |
+| Observed cache hit rate | 80.00% |
+| Search events submitted | 120 |
+| Search submission throughput | 1635.45 requests/second |
+| Batch flush count delta | 2 |
+| Distinct DB rows written delta | 120 |
+| Estimated write reduction | 1.00x |
 
-- the Prefix Index is process-local and not shared across multiple API servers
-- cache invalidation currently scans matching suggestion keys
-- recent trending is approximate because it is bucket-based
-- queued writes are in memory until the next successful flush
+In this benchmark run, the batch writer flushed search events asynchronously, but the measured write reduction was 1.00x because the submitted queries were mostly distinct. The batching design is still useful because it decouples request handling from database writes and can reduce row-level updates when repeated queries arrive within the same flush window.
 
-## 9. Future Improvements
+The full benchmark snapshot is documented in [BENCHMARK_RESULTS.md](BENCHMARK_RESULTS.md).
 
-- move batched writes to Kafka or RabbitMQ for stronger durability
-- synchronize prefix updates across multiple API servers
-- add broader integration testing around API routes
-- extend benchmark runs with repeated multi-round datasets
+## 13. Build and Test Verification
 
-## 10. Conclusion
+Verification status:
 
-PrefixPulse meets the assignment goals while keeping the implementation readable, modular, and easy to explain. The system balances low-latency reads, durable persistence, recent trending behavior, and write-efficiency through batching, while also including testing and an optional HLD scalability demonstration.
+- `npm run build` passed
+- `npm test` passed
+- Vitest test files passed: `4`
+- Vitest tests passed: `8`
+
+Passed test files:
+
+- `tests/batchWriter.test.ts`
+- `tests/consistentHash.test.ts`
+- `tests/prefixIndex.test.ts`
+- `tests/types.test.ts`
+
+## 14. Failure Handling
+
+Current behavior:
+
+- Redis suggestion lookup failure falls back to the Prefix Index
+- Redis cache write failure does not block a response
+- Redis trending update failure does not reject a search
+- batch flush failure restores the in-memory queue for retry
+
+This is good enough for a local assignment demo, but not a substitute for a durable event pipeline.
+
+## 15. Screenshots and Proof
+
+Required screenshot references:
+
+- `home.png`
+- `suggestions-iph.png`
+- `suggestions-py.png`
+- `trending.png`
+- `metrics-dashboard.png`
+- `cache-routing.png`
+- `benchmark.png`
+
+Optional proof screenshots such as `cache-hit.png`, `docker-healthy.png`, and `seed-success.png` should only be referenced if those files actually exist.
+
+## 16. Limitations
+
+- Prefix Index is process-local
+- local deployment uses one Redis instance
+- queued writes are in memory until flush
+- cache invalidation is prefix-pattern based
+- trending is approximate by recent bucket aggregation
+
+## 17. Future Improvements
+
+- durable event queue with Kafka or RabbitMQ
+- multi-instance Prefix Index synchronization
+- broader route-level integration testing
+- more benchmark runs across larger datasets and repeated rounds
+
+## 18. Conclusion
+
+PrefixPulse meets the HLD101 assignment goals with a clean local design that is easy to explain and verify. It combines fast in-memory lookup, Redis caching, Redis-based recent trending, PostgreSQL persistence, and batched updates, while clearly separating implemented behavior from higher-level scaling demonstrations.

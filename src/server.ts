@@ -51,12 +51,15 @@ const asyncHandler =
 
 app.use(express.json());
 
-app.get("/health", (_request, response) => {
+const sendHealth = (_request: Request, response: Response): void => {
   response.json({
     status: "ok",
     indexedTerms: prefixIndex.size()
   });
-});
+};
+
+app.get("/health", sendHealth);
+app.get("/api/health", sendHealth);
 
 app.get(
   "/api/suggest",

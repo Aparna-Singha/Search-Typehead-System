@@ -641,6 +641,18 @@ h3 {
   line-height: 1.5;
 }
 
+.routing-note-row {
+  justify-content: flex-start;
+}
+
+.routing-note-value {
+  flex: 1;
+  max-width: none;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  text-align: left;
+}
+
 .architecture-list {
   display: grid;
   gap: 12px;

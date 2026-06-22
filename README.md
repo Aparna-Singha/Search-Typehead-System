@@ -1,245 +1,293 @@
-# PrefixPulse: Search Typeahead System
+# PrefixPulse
 
-PrefixPulse is a student-friendly HLD101 backend project for search typeahead and autocomplete. It keeps the original architecture intentionally simple: PostgreSQL stores durable counts, Redis speeds up hot reads, an in-memory Prefix Index handles fast prefix lookup, and a batch writer reduces repeated database updates when users submit searches.
+PrefixPulse is an HLD101 Search Typeahead / Autocomplete System built with Node.js, TypeScript, and Express. It uses PostgreSQL for durable query counts, Redis for suggestion caching and recent trending activity, and an in-memory Prefix Index for fast prefix lookup.
 
-## Overview
+## Project Summary
 
-The system suggests popular queries as the user types, records submitted searches, tracks recent trending activity, and exposes a small frontend for demonstration. It also includes a benchmark script, lightweight automated tests, and an optional consistent-hashing simulation endpoint for HLD scalability discussion.
+The project demonstrates a local typeahead system with:
+
+- prefix-based suggestion lookup
+- batched search-write persistence
+- Redis-backed caching
+- recent trending aggregation
+- a plain HTML/CSS/JavaScript demo frontend served from `public/`
+- a consistent-hashing routing demo for HLD discussion
+
+The consistent-hashing route is a simulation only. The local app itself uses one Redis instance.
 
 ## Features
 
-- Prefix-based typeahead lookup using an in-memory `Map<string, Suggestion[]>`
-- Suggestions sorted by total search count
-- Search submission API with batched PostgreSQL UPSERT writes
-- Redis suggestion caching with TTL-based reuse
-- Recent trending queries powered by Redis sorted-set buckets
-- Plain HTML, CSS, and JavaScript frontend with keyboard-friendly suggestions
-- Seed script for loading `data/search_queries.csv`
-- Benchmark script for real latency and batching measurements
-- Lightweight unit tests for core logic
-- Optional consistent-hashing cache-routing demo for scalability explanation
+- `GET /api/suggest` returns ranked suggestions for a prefix
+- `POST /api/search` accepts a search and queues it for batched persistence
+- `GET /api/trending` returns recent trending queries from Redis activity buckets
+- `GET /api/metrics` exposes request, cache, and batching counters
+- `GET /api/cache-routing` demonstrates how a cache key could be routed in a scaled design
+- `GET /api/health` returns a simple health response
+- keyboard-friendly frontend for suggestions, trending, metrics, and cache-routing demo
 
 ## Architecture Summary
 
-Current architecture:
+Local flow:
 
-`Frontend UI -> Express TypeScript backend -> Redis cache -> in-memory Prefix Index fallback -> PostgreSQL source of truth -> batch writer for search count updates`
+`Browser -> Express server -> Redis cache / in-memory Prefix Index -> PostgreSQL`
 
-Supporting pieces:
+Key points:
 
-- `Redis sorted sets`: trending search activity
-- `Metrics endpoint`: request, cache, and batching counters
-- `Optional cache-routing simulation`: HLD extension only, not part of the live suggest path
+- PostgreSQL stores persistent query counts in `search_terms`
+- Redis caches suggestion results and stores recent trending bucket activity
+- the Prefix Index keeps top suggestions per prefix in memory
+- submitted searches are queued and written in batches
+- cache invalidation runs after each successful batch flush
 
-More detail is available in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+More detail is available in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/SCALING.md](docs/SCALING.md).
 
 ## Tech Stack
 
 - Node.js
 - TypeScript
-- Express.js
+- Express
 - PostgreSQL
 - Redis
+- plain HTML, CSS, and JavaScript
 - Docker Compose
 - Vitest
-- Plain HTML, CSS, JavaScript
 
-## Setup Instructions
+## Folder Structure
 
-### 1. Install dependencies
+```text
+.
+|-- data/
+|   `-- search_queries.csv
+|-- docs/
+|   |-- API.md
+|   |-- ARCHITECTURE.md
+|   |-- BENCHMARK_RESULTS.md
+|   |-- REPORT.md
+|   |-- SCALING.md
+|   `-- screenshots/
+|-- public/
+|-- scripts/
+|   |-- benchmark.ts
+|   `-- seed.ts
+|-- src/
+|-- tests/
+|-- docker-compose.yml
+`-- README.md
+```
+
+## Dataset
+
+The dataset is stored at [data/search_queries.csv](data/search_queries.csv).
+
+The dataset is a curated sample dataset created for this assignment. It contains common search-style queries with synthetic frequency counts and is used to demonstrate autocomplete ranking, caching, trending updates, and batch write behavior.
+
+Dataset facts:
+
+- path: `data/search_queries.csv`
+- accepted size: `199` valid curated synthetic rows
+- format: `query,count`
+- seed script normalizes queries, skips empty rows, and skips invalid counts
+
+## Setup
+
+### Prerequisites
+
+- Node.js
+- npm
+- Docker Desktop or compatible Docker Engine
+
+### Install dependencies
 
 ```bash
 npm install
 ```
 
-### 2. Create a local environment file
+### Create a local environment file
 
 ```bash
 cp .env.example .env
 ```
 
-### 3. Start local infrastructure
+### Start PostgreSQL and Redis with Docker
 
 ```bash
-docker compose up --build
+docker compose up -d postgres redis
 ```
 
-Compose services:
-
-- `app` on `http://localhost:3001`
-- `postgres` on `localhost:5432`
-- `redis` on `localhost:6379`
-
-The Compose app uses port `3001`, so you can still run `npm run dev` locally on `3000`.
-
-### 4. Load the dataset
+### Seed the dataset
 
 ```bash
 npm run seed
 ```
 
-### 5. Run the local development server
+### Run the development server
 
 ```bash
 npm run dev
 ```
 
-Local dev app:
+Open the app at:
 
-- backend + frontend on `http://localhost:3000`
-
-## Docker Instructions
-
-Use Docker when you want the full three-service setup defined in `docker-compose.yml`.
-
-Typical flow:
-
-```bash
-docker compose up --build
-npm run seed
+```text
+http://localhost:3000
 ```
 
-Quick verification after startup:
+## Running the Full Docker App
+
+If you want the Node.js app to run in Docker too:
 
 ```bash
-curl "http://localhost:3001/health"
+docker compose up -d --build
+```
+
+Container ports:
+
+- app: `http://localhost:3001`
+- PostgreSQL: `localhost:5432`
+- Redis: `localhost:6379`
+
+Quick verification:
+
+```bash
+curl "http://localhost:3001/api/health"
 curl "http://localhost:3001/api/suggest?q=iph&limit=5"
 curl "http://localhost:3001/api/trending?limit=5"
 ```
 
-## Dataset Loading Instructions
+Note:
 
-The dataset lives in [data/search_queries.csv](data/search_queries.csv).
+- the benchmark script probes `/health` internally
+- the app now also exposes `/api/health` for API-style documentation and manual checks
 
-This dataset is a curated sample dataset created for this assignment. It contains common search-style queries with synthetic frequency counts and is used to demonstrate autocomplete ranking, caching, trending updates, and batch write behavior.
+## Common Commands
 
-Seed behavior:
-
-- dataset path: `data/search_queries.csv`
-- dataset size: about 200 rows
-- format: `query,count`
-- frequency counts are synthetic positive integers
-- creates the required table if needed
-- reads CSV rows from `data/search_queries.csv`
-- normalizes queries by lowercasing, trimming, and collapsing whitespace
-- ignores empty queries
-- ignores invalid counts
-- inserts or refreshes counts in PostgreSQL
-
-To reload the dataset after editing the CSV:
+Build:
 
 ```bash
-npm run seed
+npm run build
 ```
 
-## API Summary
-
-- `GET /api/suggest?q=<prefix>&limit=10`
-  Returns prefix suggestions from Redis cache or the Prefix Index.
-- `POST /api/search`
-  Accepts a search query, queues it for batched persistence, and updates trending activity.
-- `GET /api/trending?limit=10`
-  Returns recent trending queries.
-- `GET /api/metrics`
-  Returns runtime counters for cache and batching behavior.
-- `GET /api/cache-routing?key=<cacheKey>`
-  Demonstrates consistent-hashing key routing for HLD scaling discussion only.
-
-Full endpoint documentation is in [docs/API.md](docs/API.md).
-
-## Frontend Usage
-
-The frontend is served by Express from `public/`.
-
-Available interactions:
-
-- type into the search box to fetch suggestions
-- use the clear button to reset the input
-- use arrow keys to move through suggestions
-- press Enter to submit the highlighted suggestion or current input
-- click any suggestion to submit it directly
-- refresh the Trending section from the UI
-- inspect the metrics cards for request, cache, and batch-write signals
-- inspect the cache-routing card for consistent-hashing simulation
-
-## Screenshots
-
-Capture these screenshots after running the app locally. The paths below are placeholders for submission packaging and should only be populated after you save real screenshots from the current light dashboard.
-
-- `docs/screenshots/home.png`
-- `docs/screenshots/suggestions-iph.png`
-- `docs/screenshots/suggestions-py.png`
-- `docs/screenshots/cache-hit.png`
-- `docs/screenshots/trending.png`
-- `docs/screenshots/metrics-dashboard.png`
-- `docs/screenshots/cache-routing.png`
-
-Suggested capture flow:
-
-1. Open `http://localhost:3000`
-2. Capture the home dashboard with an empty input
-3. Type `iph`, `py`, and another repeated prefix to show cache behavior
-4. Submit a search like `iphone 15` and capture the trending section
-5. Capture the metrics dashboard and cache-routing card
-
-## Benchmark Instructions
-
-Run:
-
-```bash
-npm run benchmark
-```
-
-If you want to benchmark the Docker app instead of local dev:
-
-```bash
-BENCHMARK_BASE_URL=http://localhost:3001 npm run benchmark
-```
-
-Results should be copied into [docs/BENCHMARK_RESULTS.md](docs/BENCHMARK_RESULTS.md) after an actual run. The repository intentionally keeps placeholders instead of invented numbers.
-
-## Testing Instructions
-
-Run:
+Test:
 
 ```bash
 npm test
 ```
 
-Current tests focus on:
+Benchmark:
 
-- Prefix Index prefix lookup and ordering
-- query normalization
-- duplicate aggregation in the batch writer
-- deterministic consistent-hash routing behavior
+```bash
+npm run benchmark
+```
 
-## Report / PDF Instructions
+Benchmark against the Docker app:
 
-Submission-friendly documents:
+```bash
+BENCHMARK_BASE_URL=http://localhost:3001 npm run benchmark
+```
+
+## Verification Commands
+
+```bash
+npm run build
+npm test
+npm run benchmark
+```
+
+## Benchmark Summary
+
+Benchmark command used:
+
+```powershell
+npm run benchmark
+```
+
+Measured results:
+
+| Metric | Result |
+|---|---:|
+| Average suggestion latency | 1.09 ms |
+| p50 latency | 1.01 ms |
+| p95 latency | 1.85 ms |
+| p99 latency | 2.64 ms |
+| Cache hit rate | 80.00% |
+| Search submission throughput | 1635.45 requests/sec |
+| Search events submitted | 120 |
+| Batch flush count delta | 2 |
+| Tests | 8 passed |
+
+This benchmark targeted `http://localhost:3000`, sampled `29` unique prefixes, and measured `116` suggestion requests after cache warm-up. In this run, write reduction was `1.00x` because the submitted search events were mostly distinct queries. Batching still helps by decoupling request handling from database writes and becomes more beneficial when repeated queries arrive within the same flush window.
+
+## API Endpoint Summary
+
+- `GET /api/health`
+  Returns `{ "status": "ok", "indexedTerms": number }`.
+- `GET /api/suggest?q=<prefix>&limit=5`
+  Returns ranked suggestions from Redis cache or the Prefix Index.
+- `POST /api/search`
+  Accepts a query, updates Redis trending activity, and queues the write for batch persistence.
+- `GET /api/trending?limit=5`
+  Returns recent trending searches.
+- `GET /api/metrics`
+  Returns runtime counters for cache and batch behavior.
+- `GET /api/cache-routing?key=suggest:iph:10`
+  Returns the simulated consistent-hash routing target for a cache key.
+
+Full request and response examples are in [docs/API.md](docs/API.md).
+
+## Frontend
+
+The frontend is served from `public/` by the Express app. It includes:
+
+- a search input with keyboard navigation
+- a suggestion list
+- a recent trending panel
+- metrics cards
+- a consistent-hashing demo card that works with raw cache keys such as `suggest:iph:10`
+
+## Screenshots
+
+Project screenshots are stored in `docs/screenshots/`.
+
+| Screenshot | Description |
+|---|---|
+| `home.png` | Main PrefixPulse dashboard with the hero section, system badges, and search console. |
+| `suggestions-iph.png` | Autocomplete suggestions for the prefix `iph`, showing ranked iPhone-related queries. |
+| `suggestions-py.png` | Autocomplete suggestions for the prefix `py`, showing ranked Python-related queries. |
+| `trending.png` | Trending searches section populated from recent Redis activity. |
+| `metrics-dashboard.png` | Request insights, cache statistics, batch write metrics, and system architecture summary. |
+| `cache-routing.png` | Consistent hashing demo showing how a cache key is mapped to a logical cache node. |
+| `benchmark.png` | Real benchmark output showing suggestion latency, cache hit rate, throughput, and metrics snapshot. |
+
+## HLD / Scaling Note
+
+PrefixPulse is a local assignment demo, not a distributed production deployment.
+
+- the live local app uses one Redis instance
+- the `cache-routing` endpoint is an HLD simulation only
+- the Prefix Index is process-local
+- the batch queue is in memory until flush time
+
+See [docs/SCALING.md](docs/SCALING.md) for scale-out options and tradeoffs.
+
+## Limitations and Tradeoffs
+
+- queued writes are not durable until a batch flush succeeds
+- the Prefix Index must be rebuilt or synchronized across multiple app replicas
+- suggestion freshness is slightly delayed by batching and cache TTL
+- trending is based on recent Redis buckets, so it is intentionally approximate
+- cache invalidation uses prefix-based key deletion patterns after batch updates
+
+## Documentation Index
 
 - [docs/API.md](docs/API.md)
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - [docs/REPORT.md](docs/REPORT.md)
+- [docs/SCALING.md](docs/SCALING.md)
 - [docs/BENCHMARK_RESULTS.md](docs/BENCHMARK_RESULTS.md)
-- screenshot placeholders under `docs/screenshots/`
+- [docs/screenshots/README.md](docs/screenshots/README.md)
 
-You can convert `docs/REPORT.md` into PDF after filling in the real benchmark observations.
+## Verification Status
 
-## Final Submission Checklist
-
-- `npm install` completes successfully
-- `docker compose up --build` starts only `app`, `postgres`, and `redis`
-- `npm run seed` loads the dataset
-- `npm run dev` starts the local development server
-- `npm test` passes
-- `npm run benchmark` runs against a live server and produces real measurements
-- README and report docs are ready for submission
-- benchmark placeholders are replaced only after a real run
-
-## Final Commit Hash
-
-To get the final commit hash for submission:
-
-```bash
-git rev-parse HEAD
-```
+- `npm run build` passed
+- `npm test` passed
+- Vitest: `4` test files passed and `8` tests passed

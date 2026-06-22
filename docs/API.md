@@ -1,23 +1,62 @@
 # API Documentation
 
-## `GET /api/suggest`
+PrefixPulse exposes a small HTTP API for health checks, suggestions, search submission, trending, metrics, and the HLD cache-routing demo.
 
-- Endpoint: `/api/suggest?q=<prefix>&limit=10`
+Notes:
+
+- examples use `http://localhost:3000`
+- `limit` values are clamped by server configuration
+- the examples below use `limit=5` for readability
+- the live local deployment uses one Redis instance
+- `GET /api/cache-routing` is a simulation endpoint only
+
+## `GET /api/health`
+
+- Endpoint: `/api/health`
 - Method: `GET`
-- Purpose: returns the top matching suggestions for a normalized prefix
+- Purpose: returns a simple health status and current in-memory index size
 
-### Request
-
-- Query parameter `q`: prefix text
-- Query parameter `limit`: optional result size, capped by configuration
-
-### Example cURL
+Example cURL:
 
 ```bash
-curl "http://localhost:3000/api/suggest?q=iph&limit=10"
+curl "http://localhost:3000/api/health"
 ```
 
-### Response
+Example response:
+
+```json
+{
+  "status": "ok",
+  "indexedTerms": 199
+}
+```
+
+Status codes:
+
+- `200`: health returned successfully
+
+Implementation note:
+
+- the app also keeps `/health` for internal checks such as Docker health probes and benchmark discovery
+
+## `GET /api/suggest`
+
+- Endpoint: `/api/suggest?q=<prefix>&limit=5`
+- Method: `GET`
+- Purpose: returns ranked suggestions for a normalized prefix
+
+Query parameters:
+
+- `q`: prefix text
+- `limit`: optional result size
+
+Example cURL:
+
+```bash
+curl "http://localhost:3000/api/suggest?q=iph&limit=5"
+```
+
+Example response:
 
 ```json
 {
@@ -30,7 +69,14 @@ curl "http://localhost:3000/api/suggest?q=iph&limit=10"
 }
 ```
 
-### Status Codes
+Behavior notes:
+
+- prefix input is lowercased, trimmed, and whitespace-normalized
+- Redis is checked first
+- on a cache miss, the Prefix Index is used and the response is cached
+- if `q` is empty, the service returns popular searches
+
+Status codes:
 
 - `200`: suggestions returned successfully
 - `500`: unexpected server error
@@ -39,9 +85,9 @@ curl "http://localhost:3000/api/suggest?q=iph&limit=10"
 
 - Endpoint: `/api/search`
 - Method: `POST`
-- Purpose: accepts a searched term, queues it for batched persistence, and updates recent trending activity
+- Purpose: accepts a query, records recent trending activity in Redis, and queues the write for batched PostgreSQL persistence
 
-### Request
+Request body:
 
 ```json
 {
@@ -49,7 +95,7 @@ curl "http://localhost:3000/api/suggest?q=iph&limit=10"
 }
 ```
 
-### Example cURL
+Example cURL:
 
 ```bash
 curl -X POST "http://localhost:3000/api/search" \
@@ -57,7 +103,17 @@ curl -X POST "http://localhost:3000/api/search" \
   -d '{"query":"iphone 15"}'
 ```
 
-### Response
+PowerShell example:
+
+```powershell
+Invoke-RestMethod `
+  -Uri "http://localhost:3000/api/search" `
+  -Method POST `
+  -ContentType "application/json" `
+  -Body '{"query":"iphone 15"}'
+```
+
+Example response:
 
 ```json
 {
@@ -67,7 +123,13 @@ curl -X POST "http://localhost:3000/api/search" \
 }
 ```
 
-### Status Codes
+Behavior notes:
+
+- the input query is normalized before it is queued
+- trending updates happen immediately in Redis
+- PostgreSQL writes happen later through the batch writer
+
+Status codes:
 
 - `202`: search accepted and queued
 - `400`: missing or empty query
@@ -75,21 +137,21 @@ curl -X POST "http://localhost:3000/api/search" \
 
 ## `GET /api/trending`
 
-- Endpoint: `/api/trending?limit=10`
+- Endpoint: `/api/trending?limit=5`
 - Method: `GET`
-- Purpose: returns recent trending searches derived from Redis activity buckets
+- Purpose: returns recent trending queries from Redis sorted-set buckets
 
-### Request
+Query parameters:
 
-- Query parameter `limit`: optional result size
+- `limit`: optional result size
 
-### Example cURL
+Example cURL:
 
 ```bash
-curl "http://localhost:3000/api/trending?limit=10"
+curl "http://localhost:3000/api/trending?limit=5"
 ```
 
-### Response
+Example response:
 
 ```json
 {
@@ -100,24 +162,29 @@ curl "http://localhost:3000/api/trending?limit=10"
 }
 ```
 
-### Status Codes
+Behavior notes:
 
-- `200`: trending results returned successfully
+- trending is based on recent activity, not lifetime count alone
+- total count from the Prefix Index is used as a tie-breaker when recent scores match
+
+Status codes:
+
+- `200`: trending returned successfully
 - `500`: unexpected server error
 
 ## `GET /api/metrics`
 
 - Endpoint: `/api/metrics`
 - Method: `GET`
-- Purpose: exposes lightweight runtime counters for requests, cache behavior, and batching
+- Purpose: returns runtime counters for requests, caching, queue depth, and batch flushing
 
-### Example cURL
+Example cURL:
 
 ```bash
 curl "http://localhost:3000/api/metrics"
 ```
 
-### Response
+Example response:
 
 ```json
 {
@@ -134,28 +201,28 @@ curl "http://localhost:3000/api/metrics"
 }
 ```
 
-### Status Codes
+Status codes:
 
 - `200`: metrics returned successfully
 - `500`: unexpected server error
 
 ## `GET /api/cache-routing`
 
-- Endpoint: `/api/cache-routing?key=<cacheKey>`
+- Endpoint: `/api/cache-routing?key=suggest:iph:10`
 - Method: `GET`
-- Purpose: demonstrates consistent-hashing key routing for HLD scaling explanation
+- Purpose: demonstrates consistent-hashing routing for a cache key in a scaled design discussion
 
-### Request
+Query parameters:
 
-- Query parameter `key`: cache key to route, such as `suggest:iph:10`
+- `key`: cache key to route, such as `suggest:iph:10`
 
-### Example cURL
+Example cURL:
 
 ```bash
 curl "http://localhost:3000/api/cache-routing?key=suggest:iph:10"
 ```
 
-### Response
+Example response:
 
 ```json
 {
@@ -167,8 +234,14 @@ curl "http://localhost:3000/api/cache-routing?key=suggest:iph:10"
 }
 ```
 
-### Status Codes
+Important note:
 
-- `200`: route result returned successfully
+- this endpoint does not represent the actual local Redis topology
+- the local deployment uses one Redis instance
+- the returned node is a logical demo node for HLD explanation
+
+Status codes:
+
+- `200`: routing result returned successfully
 - `400`: missing cache key
 - `500`: unexpected server error

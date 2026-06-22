@@ -10,6 +10,7 @@ const statusMessage = document.getElementById("statusMessage");
 const sourceBadge = document.getElementById("sourceBadge");
 const lookupModeChip = document.getElementById("lookupModeChip");
 const cacheStatusChip = document.getElementById("cacheStatusChip");
+const defaultRoutingKey = "suggest:iph:10";
 
 const metricFields = {
   lastPrefix: document.getElementById("lastPrefixValue"),
@@ -60,6 +61,38 @@ const setText = (element, value) => {
 const formatInteger = (value) => {
   const numericValue = Number(value);
   return Number.isFinite(numericValue) ? numericValue.toLocaleString() : String(value);
+};
+
+const normalizeRoutingKey = (value) => {
+  const rawValue = String(value ?? "").trim();
+
+  if (!rawValue) {
+    return defaultRoutingKey;
+  }
+
+  if (!rawValue.includes("key=")) {
+    return rawValue;
+  }
+
+  try {
+    const candidateUrl =
+      rawValue.startsWith("http://") || rawValue.startsWith("https://")
+        ? new URL(rawValue)
+        : new URL(rawValue.startsWith("/") ? rawValue : `/${rawValue}`, window.location.origin);
+    const routeKey = candidateUrl.searchParams.get("key")?.trim();
+
+    if (routeKey) {
+      return routeKey;
+    }
+  } catch (_error) {
+    const routeMatch = rawValue.match(/[?&]key=([^&]+)/);
+
+    if (routeMatch) {
+      return decodeURIComponent(routeMatch[1]).trim() || defaultRoutingKey;
+    }
+  }
+
+  return rawValue;
 };
 
 const setStatus = (message, tone = "idle") => {
@@ -299,7 +332,8 @@ const loadTrending = async () => {
 };
 
 const loadCacheRouting = async () => {
-  const cacheKey = routingKeyInput.value.trim() || "suggest:iph:10";
+  const cacheKey = normalizeRoutingKey(routingKeyInput.value);
+  routingKeyInput.value = cacheKey;
 
   try {
     const response = await fetch(`/api/cache-routing?key=${encodeURIComponent(cacheKey)}`);
@@ -312,12 +346,13 @@ const loadCacheRouting = async () => {
     }
 
     const payload = await response.json();
-    setText(metricFields.routingKey, payload.key);
+    setText(metricFields.routingKey, normalizeRoutingKey(payload.key));
     setText(metricFields.routingNode, payload.selectedNode || "unassigned");
     setText(metricFields.routingReplicas, formatInteger(payload.replicas));
     setText(metricFields.routingStrategy, payload.strategy);
     setText(metricFields.routingNote, payload.note);
   } catch (error) {
+    setText(metricFields.routingKey, cacheKey);
     setText(metricFields.routingNode, "error");
     setText(
       metricFields.routingNote,
@@ -487,6 +522,10 @@ routingKeyInput.addEventListener("keydown", (event) => {
     event.preventDefault();
     void loadCacheRouting();
   }
+});
+
+routingKeyInput.addEventListener("blur", () => {
+  routingKeyInput.value = normalizeRoutingKey(routingKeyInput.value);
 });
 
 updateRequestInsightFields();
