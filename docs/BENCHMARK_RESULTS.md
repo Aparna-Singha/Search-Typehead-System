@@ -13,8 +13,7 @@
 
 ## Dataset
 
-- Dataset file: `C:\Users\aparn\OneDrive\Documents\Search-Typehead-System\data\search_queries.csv`
-- Project dataset: `data/search_queries.csv`
+- Dataset file: `data/search_queries.csv`
 - Accepted dataset size: `199` valid curated synthetic rows
 - Dataset format: `query,count`
 
