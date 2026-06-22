@@ -10,11 +10,11 @@ The system uses a layered design:
 - an in-memory `Prefix Index` provides fast prefix lookup without scanning the database on each request
 - a `Batch Writer` reduces write amplification by merging repeated search events before persistence
 
-Refer to [ARCHITECTURE.md](/Users/aparnasingha/Documents/Search Typehead System /docs/ARCHITECTURE.md) for the Mermaid diagram and detailed path explanations.
+Refer to [ARCHITECTURE.md](ARCHITECTURE.md) for the Mermaid diagram and detailed path explanations.
 
 ## 2. Dataset Source and Loading Instructions
 
-The starter dataset is included locally in [data/search_queries.csv](/Users/aparnasingha/Documents/Search Typehead System /data/search_queries.csv). It is a hand-prepared development dataset meant to satisfy the assignment format and provide a clean baseline for testing.
+The starter dataset is included locally in [data/search_queries.csv](../data/search_queries.csv). It is a hand-prepared development dataset meant to satisfy the assignment format and provide a clean baseline for testing.
 
 CSV format:
 
@@ -44,7 +44,7 @@ Implemented endpoints:
 - `GET /api/trending`
 - `GET /api/metrics`
 
-Full request and response details are documented in [API.md](/Users/aparnasingha/Documents/Search Typehead System /docs/API.md).
+Full request and response details are documented in [API.md](API.md).
 
 ## 4. Design Choices and Tradeoffs
 
@@ -121,4 +121,3 @@ Future improvements:
 - shard or externalize the prefix structure for multi-node consistency
 - add richer analytics for hot prefixes and query conversion
 - add automated tests for services and API routes
-

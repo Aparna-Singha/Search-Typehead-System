@@ -26,7 +26,7 @@ The system suggests popular search queries as a user types. PostgreSQL is the du
 - `Prefix Index`: in-memory prefix map containing only the top `K` suggestions per prefix
 - `Batch Writer`: aggregates repeated searches before writing to PostgreSQL
 
-More detail is available in [docs/ARCHITECTURE.md](/Users/aparnasingha/Documents/Search Typehead System /docs/ARCHITECTURE.md).
+More detail is available in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Project Structure
 
@@ -122,7 +122,7 @@ If you prefer container-only execution, you can use the Compose app on `http://l
 
 ## Dataset Loading Instructions
 
-The starter dataset lives in [data/search_queries.csv](/Users/aparnasingha/Documents/Search Typehead System /data/search_queries.csv). It uses the required format:
+The starter dataset lives in [data/search_queries.csv](data/search_queries.csv). It uses the required format:
 
 ```csv
 query,count
@@ -145,7 +145,7 @@ You can replace this file with a larger CSV as long as it keeps the same header 
 - `GET /api/metrics`
   Returns request counts, cache statistics, and batching metrics.
 
-Full endpoint documentation is in [docs/API.md](/Users/aparnasingha/Documents/Search Typehead System /docs/API.md).
+Full endpoint documentation is in [docs/API.md](docs/API.md).
 
 ## Frontend
 
@@ -211,4 +211,3 @@ To get the final commit hash for submission:
 ```bash
 git rev-parse HEAD
 ```
-

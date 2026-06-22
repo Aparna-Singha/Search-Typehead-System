@@ -27,7 +27,7 @@ const setSource = (sourceText) => {
 };
 
 const renderSuggestions = (suggestions) => {
-  suggestionList.innerHTML = "";
+  suggestionList.replaceChildren();
 
   if (suggestions.length === 0) {
     const item = document.createElement("li");
@@ -45,10 +45,14 @@ const renderSuggestions = (suggestions) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "suggestion-button";
-    button.innerHTML = `
-      <strong>${suggestion.query}</strong>
-      <span class="suggestion-count">${suggestion.count.toLocaleString()}</span>
-    `;
+    const queryLabel = document.createElement("strong");
+    queryLabel.textContent = suggestion.query;
+
+    const countLabel = document.createElement("span");
+    countLabel.className = "suggestion-count";
+    countLabel.textContent = suggestion.count.toLocaleString();
+
+    button.append(queryLabel, countLabel);
 
     button.addEventListener("click", () => {
       searchInput.value = suggestion.query;
@@ -61,7 +65,7 @@ const renderSuggestions = (suggestions) => {
 };
 
 const renderTrending = (items) => {
-  trendingList.innerHTML = "";
+  trendingList.replaceChildren();
 
   if (items.length === 0) {
     const item = document.createElement("li");
@@ -72,10 +76,15 @@ const renderTrending = (items) => {
 
   items.forEach((entry) => {
     const item = document.createElement("li");
-    item.innerHTML = `
-      <span>${entry.query}</span>
-      <span class="trend-score">${entry.score}</span>
-    `;
+
+    const queryLabel = document.createElement("span");
+    queryLabel.textContent = entry.query;
+
+    const scoreLabel = document.createElement("span");
+    scoreLabel.className = "trend-score";
+    scoreLabel.textContent = String(entry.score);
+
+    item.append(queryLabel, scoreLabel);
     trendingList.appendChild(item);
   });
 };

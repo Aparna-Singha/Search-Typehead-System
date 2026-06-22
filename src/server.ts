@@ -97,7 +97,7 @@ app.get("/api/metrics", (_request, response) => {
   response.json(metrics.getSnapshot());
 });
 
-const publicDirectory = path.join(__dirname, "../public");
+const publicDirectory = path.join(process.cwd(), "public");
 app.use(express.static(publicDirectory));
 
 app.get("/", (_request, response) => {
