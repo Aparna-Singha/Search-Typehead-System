@@ -1,0 +1,36 @@
+{
+  "name": "search-typeahead-system",
+  "version": "1.0.0",
+  "description": "Backend assignment project for a search typeahead system with PostgreSQL, Redis, and a Prefix Index.",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "seed": "tsx scripts/seed.ts",
+    "benchmark": "tsx scripts/benchmark.ts"
+  },
+  "keywords": [
+    "typeahead",
+    "autocomplete",
+    "express",
+    "typescript",
+    "postgres",
+    "redis"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
+    "pg": "^8.16.3",
+    "redis": "^4.7.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.0.10",
+    "@types/pg": "^8.20.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
+  }
+}

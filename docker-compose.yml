@@ -1,0 +1,61 @@
+services:
+  app:
+    build: .
+    container_name: search-typeahead-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      PORT: 3001
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/search_typeahead
+      REDIS_URL: redis://redis:6379
+      SUGGEST_CACHE_TTL_SECONDS: 60
+      DEFAULT_SUGGEST_LIMIT: 10
+      MAX_SUGGEST_LIMIT: 10
+      PREFIX_TOP_K: 15
+      POPULAR_TOP_K: 25
+      BATCH_SIZE: 25
+      FLUSH_INTERVAL_MS: 3000
+      TRENDING_WINDOW_MINUTES: 60
+      TRENDING_BUCKET_MINUTES: 5
+      TRENDING_CANDIDATE_LIMIT: 100
+    ports:
+      - "3001:3001"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: search-typeahead-postgres
+    environment:
+      POSTGRES_DB: search_typeahead
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d search_typeahead"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: search-typeahead-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:

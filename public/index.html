@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Search Typeahead System</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <main class="page-shell">
+      <section class="hero-card">
+        <p class="eyebrow">HLD101 Assignment</p>
+        <h1>Search Typeahead System</h1>
+        <p class="hero-copy">
+          Type a prefix to fetch suggestions from the in-memory Prefix Index. Submitting a
+          search queues a batched write and updates recent trending activity in Redis.
+        </p>
+
+        <div class="search-card">
+          <label for="searchInput">Search query</label>
+          <div class="search-row">
+            <input
+              id="searchInput"
+              type="text"
+              placeholder="Try: iph, python, machine..."
+              autocomplete="off"
+            />
+            <button id="submitButton" type="button">Search</button>
+          </div>
+          <p id="statusMessage" class="status-message">Popular suggestions are shown when the input is empty.</p>
+          <p id="sourceBadge" class="source-badge">Source: waiting</p>
+          <ul id="suggestionList" class="suggestion-list" aria-label="Suggestions"></ul>
+        </div>
+      </section>
+
+      <section class="content-grid">
+        <article class="panel">
+          <div class="panel-head">
+            <h2>Trending searches</h2>
+            <button id="refreshTrendingButton" class="ghost-button" type="button">Refresh</button>
+          </div>
+          <p class="panel-copy">
+            This list is based on recent Redis activity buckets, with total count used as a
+            tie-breaker.
+          </p>
+          <ul id="trendingList" class="trend-list"></ul>
+        </article>
+
+        <article class="panel">
+          <h2>How this demo behaves</h2>
+          <ul class="info-list">
+            <li>Suggestions are debounced before each API call.</li>
+            <li>Redis caches repeated prefix lookups for faster reads.</li>
+            <li>Search submissions return quickly and write to PostgreSQL in batches.</li>
+            <li>New activity can appear in trending before the next database flush finishes.</li>
+          </ul>
+        </article>
+      </section>
+    </main>
+
+    <script src="/script.js"></script>
+  </body>
+</html>
+
